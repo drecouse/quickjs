@@ -78,6 +78,8 @@ DEF(await, "await")
 /* empty string */
 DEF(empty_string, "")
 /* identifiers */
+DEF(keys, "keys")
+DEF(size, "size")
 DEF(length, "length")
 DEF(message, "message")
 DEF(cause, "cause")
@@ -202,6 +204,7 @@ DEF(Int32Array, "Int32Array")
 DEF(Uint32Array, "Uint32Array")
 DEF(BigInt64Array, "BigInt64Array")
 DEF(BigUint64Array, "BigUint64Array")
+DEF(Float16Array, "Float16Array")
 DEF(Float32Array, "Float32Array")
 DEF(Float64Array, "Float64Array")
 DEF(DataView, "DataView")
@@ -212,6 +215,7 @@ DEF(Map, "Map")
 DEF(Set, "Set") /* Map + 1 */
 DEF(WeakMap, "WeakMap") /* Map + 2 */
 DEF(WeakSet, "WeakSet") /* Map + 3 */
+DEF(Iterator, "Iterator")
 DEF(Map_Iterator, "Map Iterator")
 DEF(Set_Iterator, "Set Iterator")
 DEF(Array_Iterator, "Array Iterator")

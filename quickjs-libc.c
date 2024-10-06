@@ -1033,7 +1033,7 @@ static JSValue js_std_fdopen(JSContext *ctx, JSValue this_val,
         goto fail;
     }
 
-    f = fdopen(fd, mode);
+    f = _fdopen(fd, mode);
     if (!f)
         err = errno;
     else
@@ -1225,7 +1225,7 @@ static JSValue js_std_file_fileno(JSContext *ctx, JSValue this_val,
     FILE *f = js_std_file_get(ctx, this_val);
     if (!f)
         return JS_EXCEPTION;
-    return JS_NewInt32(ctx, fileno(f));
+    return JS_NewInt32(ctx, _fileno(f));
 }
 
 static JSValue js_std_file_read_write(JSContext *ctx, JSValue this_val,
@@ -1690,7 +1690,7 @@ static JSValue js_os_open(JSContext *ctx, JSValue this_val,
     if (!(flags & O_TEXT))
         flags |= O_BINARY;
 #endif
-    ret = js_get_errno(open(filename, flags, mode));
+    ret = js_get_errno(_open(filename, flags, mode));
     JS_FreeCString(ctx, filename);
     return JS_NewInt32(ctx, ret);
 }
@@ -1701,7 +1701,7 @@ static JSValue js_os_close(JSContext *ctx, JSValue this_val,
     int fd, ret;
     if (JS_ToInt32(ctx, &fd, argv[0]))
         return JS_EXCEPTION;
-    ret = js_get_errno(close(fd));
+    ret = js_get_errno(_close(fd));
     return JS_NewInt32(ctx, ret);
 }
 
@@ -1719,7 +1719,7 @@ static JSValue js_os_seek(JSContext *ctx, JSValue this_val,
         return JS_EXCEPTION;
     if (JS_ToInt32(ctx, &whence, argv[2]))
         return JS_EXCEPTION;
-    ret = lseek(fd, pos, whence);
+    ret = _lseek(fd, pos, whence);
     if (ret == -1)
         ret = -errno;
     if (is_bigint)
@@ -1749,9 +1749,9 @@ static JSValue js_os_read_write(JSContext *ctx, JSValue this_val,
     if (pos + len > size)
         return JS_ThrowRangeError(ctx, "read/write array buffer overflow");
     if (magic)
-        ret = js_get_errno(write(fd, buf + pos, len));
+        ret = js_get_errno(_write(fd, buf + pos, len));
     else
-        ret = js_get_errno(read(fd, buf + pos, len));
+        ret = js_get_errno(_read(fd, buf + pos, len));
     return JS_NewInt64(ctx, ret);
 }
 
@@ -1761,7 +1761,7 @@ static JSValue js_os_isatty(JSContext *ctx, JSValue this_val,
     int fd;
     if (JS_ToInt32(ctx, &fd, argv[0]))
         return JS_EXCEPTION;
-    return JS_NewBool(ctx, (isatty(fd) != 0));
+    return JS_NewBool(ctx, (_isatty(fd) != 0));
 }
 
 #if defined(_WIN32)
@@ -1884,7 +1884,7 @@ static JSValue js_os_remove(JSContext *ctx, JSValue this_val,
         if (stat(filename, &st) == 0 && S_ISDIR(st.st_mode)) {
             ret = rmdir(filename);
         } else {
-            ret = unlink(filename);
+            ret = _unlink(filename);
         }
     }
 #else
@@ -2541,9 +2541,9 @@ static JSValue js_os_mkdir(JSContext *ctx, JSValue this_val,
         return JS_EXCEPTION;
 #if defined(_WIN32)
     (void)mode;
-    ret = js_get_errno(mkdir(path));
+    ret = js_get_errno(_mkdir(path));
 #else
-    ret = js_get_errno(mkdir(path, mode));
+    ret = js_get_errno(_mkdir(path, mode));
 #endif
     JS_FreeCString(ctx, path);
     return JS_NewInt32(ctx, ret);

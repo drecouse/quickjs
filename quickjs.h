@@ -39,11 +39,19 @@ extern "C" {
 #if defined(__GNUC__) || defined(__clang__)
 #define js_force_inline       inline __attribute__((always_inline))
 #define __js_printf_like(f, a)   __attribute__((format(printf, f, a)))
+#if defined(_WIN32)
+#define JS_EXTERN __declspec(dllexport)
+#else
 #define JS_EXTERN __attribute__((visibility("default")))
+#endif
 #else
 #define js_force_inline  inline
 #define __js_printf_like(a, b)
+#if defined(_WIN32)
+#define JS_EXTERN __declspec(dllexport)
+#else
 #define JS_EXTERN /* nothing */
+#endif
 #endif
 
 #define JS_BOOL int

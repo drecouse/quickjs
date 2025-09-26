@@ -50443,7 +50443,7 @@ static void js_promise_finalizer(JSRuntime *rt, JSValueConst val)
 
     if (s->promise_state == JS_PROMISE_REJECTED && !s->is_handled) {
         if (rt->host_unhandled_promise_rejection_tracker) {
-            rt->host_unhandled_promise_rejection_tracker(s->ctx, val, s->promise_result, FALSE,
+            rt->host_unhandled_promise_rejection_tracker(s->ctx, val, s->promise_result, false,
                                                          rt->host_unhandled_promise_rejection_tracker_opaque);
         }
     }

@@ -25,6 +25,7 @@
 #ifndef CUTILS_H
 #define CUTILS_H
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
@@ -42,16 +43,20 @@ extern "C" {
 #endif
 #if defined(__APPLE__)
 #include <malloc/malloc.h>
-#elif defined(__linux__) || defined(__ANDROID__) || defined(__CYGWIN__)
+#elif defined(__linux__) || defined(__ANDROID__) || defined(__CYGWIN__) || defined(__GLIBC__)
 #include <malloc.h>
 #elif defined(__FreeBSD__)
 #include <malloc_np.h>
 #elif defined(_WIN32)
 #include <windows.h>
 #endif
-#if !defined(_WIN32)
+#if !defined(_WIN32) && !defined(EMSCRIPTEN) && !defined(__wasi__)
 #include <errno.h>
 #include <pthread.h>
+#endif
+#if !defined(_WIN32)
+#include <limits.h>
+#include <unistd.h>
 #endif
 
 #if defined(_MSC_VER) && !defined(__clang__)
@@ -62,10 +67,6 @@ extern "C" {
 #  define __maybe_unused
 #  define __attribute__(x)
 #  define __attribute(x)
-#  include <intrin.h>
-static void *__builtin_frame_address(unsigned int level) {
-    return (void *)((char*)_AddressOfReturnAddress() - sizeof(int *) - level * sizeof(int *));
-}
 #else
 #  define likely(x)       __builtin_expect(!!(x), 1)
 #  define unlikely(x)     __builtin_expect(!!(x), 0)
@@ -73,19 +74,6 @@ static void *__builtin_frame_address(unsigned int level) {
 #  define no_inline __attribute__((noinline))
 #  define __maybe_unused __attribute__((unused))
 #endif
-
-// https://stackoverflow.com/a/6849629
-#undef FORMAT_STRING
-#if _MSC_VER >= 1400
-# include <sal.h>
-# if _MSC_VER > 1400
-#  define FORMAT_STRING(p) _Printf_format_string_ p
-# else
-#  define FORMAT_STRING(p) __format_string p
-# endif /* FORMAT_STRING */
-#else
-# define FORMAT_STRING(p) p
-#endif /* _MSC_VER */
 
 #if defined(_MSC_VER) && !defined(__clang__)
 #include <math.h>
@@ -95,11 +83,6 @@ static void *__builtin_frame_address(unsigned int level) {
 #define INF (1.0/0.0)
 #define NEG_INF (-1.0/0.0)
 #endif
-
-#define xglue(x, y) x ## y
-#define glue(x, y) xglue(x, y)
-#define stringify(s)    tostring(s)
-#define tostring(s)     #s
 
 #ifndef offsetof
 #define offsetof(type, field) ((size_t) &((type *)0)->field)
@@ -115,25 +98,42 @@ static void *__builtin_frame_address(unsigned int level) {
 #define container_of(ptr, type, member) ((type *)((uint8_t *)(ptr) - offsetof(type, member)))
 #endif
 
-#if !defined(_MSC_VER) && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-#define minimum_length(n)  static n
+#if defined(_MSC_VER) || defined(__cplusplus)
+#define minimum_length(n) n
 #else
-#define minimum_length(n)  n
+#define minimum_length(n) static n
 #endif
 
-typedef int BOOL;
-
-#ifndef FALSE
-enum {
-    FALSE = 0,
-    TRUE = 1,
-};
+/* Borrowed from Folly */
+#ifndef JS_PRINTF_FORMAT
+#ifdef _MSC_VER
+#include <sal.h>
+#define JS_PRINTF_FORMAT _Printf_format_string_
+#define JS_PRINTF_FORMAT_ATTR(format_param, dots_param)
+#else
+#define JS_PRINTF_FORMAT
+#if !defined(__clang__) && defined(__GNUC__)
+#define JS_PRINTF_FORMAT_ATTR(format_param, dots_param) \
+  __attribute__((format(gnu_printf, format_param, dots_param)))
+#else
+#define JS_PRINTF_FORMAT_ATTR(format_param, dots_param) \
+  __attribute__((format(printf, format_param, dots_param)))
+#endif
+#endif
 #endif
 
-void pstrcpy(char *buf, int buf_size, const char *str);
-char *pstrcat(char *buf, int buf_size, const char *s);
-int strstart(const char *str, const char *val, const char **ptr);
-int has_suffix(const char *str, const char *suffix);
+#if defined(PATH_MAX)
+# define JS__PATH_MAX PATH_MAX
+#elif defined(_WIN32)
+# define JS__PATH_MAX 32767
+#else
+# define JS__PATH_MAX 8192
+#endif
+
+void js__pstrcpy(char *buf, int buf_size, const char *str);
+char *js__pstrcat(char *buf, int buf_size, const char *s);
+int js__strstart(const char *str, const char *val, const char **ptr);
+int js__has_suffix(const char *str, const char *suffix);
 
 static inline uint8_t is_be(void) {
     union {
@@ -437,7 +437,7 @@ typedef struct DynBuf {
     uint8_t *buf;
     size_t size;
     size_t allocated_size;
-    BOOL error; /* true if a memory allocation error occurred */
+    bool error; /* true if a memory allocation error occurred */
     DynBufReallocFunc *realloc_func;
     void *opaque; /* for realloc_func */
 } DynBuf;
@@ -462,15 +462,14 @@ static inline int dbuf_put_u64(DynBuf *s, uint64_t val)
 {
     return dbuf_put(s, (uint8_t *)&val, 8);
 }
-int __attribute__((format(printf, 2, 3))) dbuf_printf(DynBuf *s,
-                                                      FORMAT_STRING(const char *fmt), ...);
+int JS_PRINTF_FORMAT_ATTR(2, 3) dbuf_printf(DynBuf *s, JS_PRINTF_FORMAT const char *fmt, ...);
 void dbuf_free(DynBuf *s);
-static inline BOOL dbuf_error(DynBuf *s) {
+static inline bool dbuf_error(DynBuf *s) {
     return s->error;
 }
 static inline void dbuf_set_error(DynBuf *s)
 {
-    s->error = TRUE;
+    s->error = true;
 }
 
 /*---- UTF-8 and UTF-16 handling ----*/
@@ -486,7 +485,7 @@ enum {
 };
 int utf8_scan(const char *buf, size_t len, size_t *plen);
 size_t utf8_encode_len(uint32_t c);
-size_t utf8_encode(uint8_t *buf, uint32_t c);
+size_t utf8_encode(uint8_t buf[minimum_length(UTF8_CHAR_LEN_MAX)], uint32_t c);
 uint32_t utf8_decode_len(const uint8_t *p, size_t max_len, const uint8_t **pp);
 uint32_t utf8_decode(const uint8_t *p, const uint8_t **pp);
 size_t utf8_decode_buf8(uint8_t *dest, size_t dest_len, const char *src, size_t src_len);
@@ -494,17 +493,17 @@ size_t utf8_decode_buf16(uint16_t *dest, size_t dest_len, const char *src, size_
 size_t utf8_encode_buf8(char *dest, size_t dest_len, const uint8_t *src, size_t src_len);
 size_t utf8_encode_buf16(char *dest, size_t dest_len, const uint16_t *src, size_t src_len);
 
-static inline BOOL is_surrogate(uint32_t c)
+static inline bool is_surrogate(uint32_t c)
 {
     return (c >> 11) == (0xD800 >> 11); // 0xD800-0xDFFF
 }
 
-static inline BOOL is_hi_surrogate(uint32_t c)
+static inline bool is_hi_surrogate(uint32_t c)
 {
     return (c >> 10) == (0xD800 >> 10); // 0xD800-0xDBFF
 }
 
-static inline BOOL is_lo_surrogate(uint32_t c)
+static inline bool is_lo_surrogate(uint32_t c)
 {
     return (c >> 10) == (0xDC00 >> 10); // 0xDC00-0xDFFF
 }
@@ -544,19 +543,29 @@ static inline uint8_t to_upper_ascii(uint8_t c) {
     return c >= 'a' && c <= 'z' ? c - 'a' + 'A' : c;
 }
 
-extern char const digits36[36];
-size_t u32toa(char buf[minimum_length(11)], uint32_t n);
-size_t i32toa(char buf[minimum_length(12)], int32_t n);
-size_t u64toa(char buf[minimum_length(21)], uint64_t n);
-size_t i64toa(char buf[minimum_length(22)], int64_t n);
-size_t u32toa_radix(char buf[minimum_length(33)], uint32_t n, unsigned int base);
-size_t i32toa_radix(char buf[minimum_length(34)], int32_t n, unsigned base);
-size_t u64toa_radix(char buf[minimum_length(65)], uint64_t n, unsigned int base);
-size_t i64toa_radix(char buf[minimum_length(66)], int64_t n, unsigned int base);
-
 void rqsort(void *base, size_t nmemb, size_t size,
             int (*cmp)(const void *, const void *, void *),
             void *arg);
+
+static inline uint64_t float64_as_uint64(double d)
+{
+    union {
+        double d;
+        uint64_t u64;
+    } u;
+    u.d = d;
+    return u.u64;
+}
+
+static inline double uint64_as_float64(uint64_t u64)
+{
+    union {
+        double d;
+        uint64_t u64;
+    } u;
+    u.u64 = u64;
+    return u.d;
+}
 
 int64_t js__gettimeofday_us(void);
 uint64_t js__hrtime_ns(void);
@@ -567,27 +576,37 @@ static inline size_t js__malloc_usable_size(const void *ptr)
     return malloc_size(ptr);
 #elif defined(_WIN32)
     return _msize((void *)ptr);
-#elif defined(__linux__) || defined(__ANDROID__) || defined(__CYGWIN__) || defined(__FreeBSD__)
+#elif defined(__linux__) || defined(__ANDROID__) || defined(__CYGWIN__) || defined(__FreeBSD__) || defined(__GLIBC__)
     return malloc_usable_size((void *)ptr);
 #else
     return 0;
 #endif
 }
 
+int js_exepath(char* buffer, size_t* size);
+
 /* Cross-platform threading APIs. */
 
-#if !defined(EMSCRIPTEN) && !defined(__wasi__)
+#if defined(EMSCRIPTEN) || defined(__wasi__)
+
+#define JS_HAVE_THREADS 0
+
+#else
+
+#define JS_HAVE_THREADS 1
 
 #if defined(_WIN32)
 #define JS_ONCE_INIT INIT_ONCE_STATIC_INIT
 typedef INIT_ONCE js_once_t;
 typedef CRITICAL_SECTION js_mutex_t;
 typedef CONDITION_VARIABLE js_cond_t;
+typedef HANDLE js_thread_t;
 #else
 #define JS_ONCE_INIT PTHREAD_ONCE_INIT
 typedef pthread_once_t js_once_t;
 typedef pthread_mutex_t js_mutex_t;
 typedef pthread_cond_t js_cond_t;
+typedef pthread_t js_thread_t;
 #endif
 
 void js_once(js_once_t *guard, void (*callback)(void));
@@ -603,6 +622,15 @@ void js_cond_signal(js_cond_t *cond);
 void js_cond_broadcast(js_cond_t *cond);
 void js_cond_wait(js_cond_t *cond, js_mutex_t *mutex);
 int js_cond_timedwait(js_cond_t *cond, js_mutex_t *mutex, uint64_t timeout);
+
+enum {
+    JS_THREAD_CREATE_DETACHED = 1,
+};
+
+// creates threads with 2 MB stacks (glibc default)
+int js_thread_create(js_thread_t *thrd, void (*start)(void *), void *arg,
+                     int flags);
+int js_thread_join(js_thread_t thrd);
 
 #endif /* !defined(EMSCRIPTEN) && !defined(__wasi__) */
 

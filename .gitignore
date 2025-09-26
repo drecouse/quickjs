@@ -4,6 +4,11 @@
 .obj/
 build/
 unicode/
-test262_*.txt
 .idea
 cmake-*
+.vs
+out/
+CMakeUserPresets.json
+fuzz
+.vscode/
+microbench*.txt

@@ -10,6 +10,13 @@ QuickJS uses [CMake] as its main build system, with an additional helper [Makefi
 Windows users will need to run the CMake commands manually.
 :::
 
+## Getting the source
+
+```bash
+git clone https://github.com/quickjs-ng/quickjs.git
+cd quickjs
+```
+
 ## Compiling everything
 
 ```bash
@@ -18,6 +25,16 @@ make
 
 This will build the `qjs` and `qjsc` executables and other test tools. Head over [here](./cli) for
 instructions on how to use them.
+
+## Amalgamated builds
+
+The amalgamated build rolls individual source files into a single big file.
+It's a good choice for projects that want to use QuickJS without CMake.
+
+Download quickjs-amalgam.zip from https://github.com/quickjs-ng/quickjs/releases
+
+To enable the std, os and bjson modules, compile quickjs-amalgam.c with
+`-DQJS_BUILD_LIBC`.
 
 ## Debug builds
 

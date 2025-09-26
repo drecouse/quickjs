@@ -33,7 +33,7 @@ Returns `quickjs-ng/<version>`.
 
 Shorthand for `std.gc()`.
 
-## `bjson` module
+## `qjs:bjson` module
 
 ### `bjson.write(obj, [flags])`
 
@@ -58,7 +58,7 @@ Supported flags:
 - `READ_OBJ_REFERENCE`: allow de-serializing object references
 - `READ_OBJ_SAB`: allow de-serializing SharedArrayBuffer instances
 
-## `os` module
+## `qjs:os` module
 
 The `os` module provides Operating System specific functions:
 
@@ -143,6 +143,10 @@ pathname of `path` and `err` the error code.
 Return `[str, err]` where `str` is the current working directory
 and `err` the error code.
 
+### `exePath()`
+
+Returns the full path of the current executable or `undefined` if not available / supported.
+
 ### `chdir(path)`
 
 Change the current directory. Return 0 if OK or `-errno`.
@@ -194,7 +198,8 @@ the error code.
 
 Return `[array, err]` where `array` is an array of strings
 containing the filenames of the directory `path`. `err` is
-the error code.
+the error code. `array` contains at least `"."` and `".."`
+if successful.
 
 ### `setReadHandler(fd, func)`
 
@@ -249,6 +254,8 @@ object containing optional parameters:
   process.
 - `uid` - Integer. If present, the process uid with `setuid`.
 - `gid` - Integer. If present, the process gid with `setgid`.
+- `groups` - Array of integer. If present, the supplementary
+   group IDs with `setgroup`.
 
 ### `waitpid(pid, options)`
 
@@ -311,7 +318,7 @@ The worker class has the following static properties:
   worker and is used to send or receive messages.
 
 The worker instances have the following properties:
-  
+
 - `postMessage(msg)` - Send a message to the corresponding worker. `msg` is cloned in
   the destination worker using an algorithm similar to the `HTML`
   structured clone algorithm. `SharedArrayBuffer` are shared
@@ -323,7 +330,7 @@ The worker instances have the following properties:
   received message. The thread is not terminated if there is at least
   one non `null` `onmessage` handler.
 
-## `std` module
+## `qjs:std` module
 
 The `std` module provides wrappers to libc (`stdlib.h` and `stdio.h`) and a few other utilities.
 
@@ -348,10 +355,24 @@ optional properties:
 
 Evaluate the file `filename` as a script (global eval).
 
-### `loadFile(filename)`
+### `loadFile(filename, [options])`
 
 Load the file `filename` and return it as a string assuming UTF-8
 encoding. Return `null` in case of I/O error.
+
+If `options.binary` is set to `true` a `Uint8Array` is returned instead.
+
+### `writeFile(filename, data)`
+
+Create the file `filename` and write `data` into it.
+
+`data` can be a string, a typed array or an `ArrayBuffer`. `undefined` is
+treated as the empty string.
+
+When `data` is a string, the file is opened in text mode; otherwise it is
+opened in binary mode. (This distinction is only relevant on Windows.)
+
+Throws an exception if the file cannot be created or written to.
 
 ### `open(filename, flags, errorObj = undefined)`
 
@@ -536,11 +557,16 @@ position `position` (wrapper to the libc `fwrite`).
 Return the next line from the file, assuming UTF-8 encoding, excluding
 the trailing line feed.
 
+#### `readAsArrayBuffer(max_size = undefined)`
+
+Read `max_size` bytes from the file and return them as an ArrayBuffer.
+If `max_size` is not present, the file is read until its end.
+
 #### `readAsString(max_size = undefined)`
 
 Read `max_size` bytes from the file and return them as a string
 assuming UTF-8 encoding. If `max_size` is not present, the file
-is read up its end.
+is read until its end.
 
 #### `getByte()`
 

@@ -24,6 +24,7 @@
 #ifndef QUICKJS_LIBC_H
 #define QUICKJS_LIBC_H
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -47,27 +48,34 @@ extern "C" {
 #endif
 #endif
 
-JS_EXTERN JSModuleDef *js_init_module_std(JSContext *ctx, const char *module_name);
-JS_EXTERN JSModuleDef *js_init_module_os(JSContext *ctx, const char *module_name);
-JS_EXTERN JSModuleDef *js_init_module_bjson(JSContext *ctx, const char *module_name);
+JS_EXTERN JSModuleDef *js_init_module_std(JSContext *ctx,
+                                          const char *module_name);
+JS_EXTERN JSModuleDef *js_init_module_os(JSContext *ctx,
+                                         const char *module_name);
+JS_EXTERN JSModuleDef *js_init_module_bjson(JSContext *ctx,
+                                            const char *module_name);
 JS_EXTERN void js_std_add_helpers(JSContext *ctx, int argc, char **argv);
-JS_EXTERN JSValue js_std_loop(JSContext *ctx);
+JS_EXTERN int js_std_loop(JSContext *ctx);
 JS_EXTERN JSValue js_std_await(JSContext *ctx, JSValue obj);
 JS_EXTERN void js_std_init_handlers(JSRuntime *rt);
 JS_EXTERN void js_std_free_handlers(JSRuntime *rt);
 JS_EXTERN void js_std_dump_error(JSContext *ctx);
-JS_EXTERN void js_std_dump_error1(JSContext *ctx, JSValue exception_val);
-JS_EXTERN uint8_t *js_load_file(JSContext *ctx, size_t *pbuf_len, const char *filename);
-JS_EXTERN int js_module_set_import_meta(JSContext *ctx, JSValue func_val,
-                              JS_BOOL use_realpath, JS_BOOL is_main);
+JS_EXTERN uint8_t *js_load_file(JSContext *ctx, size_t *pbuf_len,
+                                const char *filename);
+JS_EXTERN int js_module_set_import_meta(JSContext *ctx, JSValueConst func_val,
+                                        bool use_realpath, bool is_main);
 JS_EXTERN JSModuleDef *js_module_loader(JSContext *ctx,
-                              const char *module_name, void *opaque);
-JS_EXTERN void js_std_eval_binary(JSContext *ctx, const uint8_t *buf, size_t buf_len,
-                        int flags);
-JS_EXTERN void js_std_promise_rejection_tracker(JSContext *ctx, JSValue promise,
-                                      JSValue reason,
-                                      JS_BOOL is_handled, void *opaque);
+                                        const char *module_name, void *opaque);
+JS_EXTERN void js_std_eval_binary(JSContext *ctx, const uint8_t *buf,
+                                  size_t buf_len, int flags);
+JS_EXTERN void js_std_promise_rejection_tracker(JSContext *ctx,
+                                                JSValueConst promise,
+                                                JSValueConst reason,
+                                                bool is_handled,
+                                                void *opaque);
 JS_EXTERN void js_std_set_worker_new_context_func(JSContext *(*func)(JSRuntime *rt));
+
+#undef JS_EXTERN
 
 #ifdef __cplusplus
 } /* extern "C" { */

@@ -264,7 +264,7 @@ typedef struct JSValue {
 #define JS_VALUE_GET_PTR(v) ((v).u.ptr)
 
 /* msvc doesn't understand designated initializers without /std:c++20 */
-#ifdef __cplusplus
+#if defined(__cplusplus) && __cplusplus <= 201703L
 static inline JSValue JS_MKPTR(int64_t tag, void *ptr)
 {
     JSValue v;
@@ -290,6 +290,10 @@ static inline JSValue JS_MKNAN(void)
 #define JS_MKPTR(tag, ptr) JS_MKPTR(tag, ptr)
 #define JS_MKVAL(tag, val) JS_MKVAL(tag, val)
 #define JS_NAN             JS_MKNAN() /* alas, not a constant expression */
+#elif defined(__cplusplus)
+#define JS_MKPTR(tag, p)   JSValue{ JSValueUnion{ .ptr = p }, tag }
+#define JS_MKVAL(tag, val) JSValue{ JSValueUnion{ .int32 = val }, tag }
+#define JS_NAN             JSValue{ JSValueUnion{ .float64 = NAN }, JS_TAG_FLOAT64 }
 #else
 #define JS_MKPTR(tag, p)   (JSValue){ (JSValueUnion){ .ptr = p }, tag }
 #define JS_MKVAL(tag, val) (JSValue){ (JSValueUnion){ .int32 = val }, tag }
